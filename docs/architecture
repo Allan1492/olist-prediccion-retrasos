@@ -1,0 +1,26 @@
+Detalle de las Capas
+
+1. Capa Bronze (Ingesta y Datos Crudos)
+Propósito: Almacenar los datos en su formato original, sin transformaciones de negocio, pero convertidos a un formato optimizado.
+Entrada: 9 archivos CSV subidos al Volumen de Unity Catalog.
+Proceso: Lectura de CSVs con inferencia de esquema y guardado en formato Delta Lake.
+Salida: 9 tablas Delta con el prefijo bronze_ (ej. bronze_olist_orders_dataset).
+Responsable: ALLAN.
+
+2. Capa Silver (Limpieza, Unión y Enriquecimiento)
+Propósito: Filtrar, limpiar y unir los datos para crear una vista consolidada y confiable del negocio.
+Procesos Clave:
+JOINs: Unión de tablas transaccionales (pedidos, items, pagos, reseñas) con tablas de entidades (productos, vendedores, clientes).
+Geolocalización: Cálculo de la distancia real en kilómetros entre el vendedor y el cliente usando la fórmula de Haversine.
+Variable Objetivo: Creación de la variable binaria is_late (1 si se retrasó, 0 si llegó a tiempo) y days_delay.
+Salida: Tabla unificada silver_enriched.
+Responsables: Persona B (Transformaciones) y ESTEBAN.
+
+3. Capa Gold (Feature Engineering y ML)
+Propósito: Preparar el dataset final optimizado para el entrenamiento de modelos de Machine Learning.
+Procesos Clave:
+Codificación de variables categóricas (One-Hot Encoding / String Indexer).
+Manejo de valores nulos y escalado de características.
+División del dataset en Train, Validation y Test.
+Salida: Tabla gold_features_ml.
+Responsable: MARLON.
