@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+
+# Datos crudos: se descargan de Kaggle y se suben al Volumen de Unity Catalog.
+# No se versionan por peso (126 MB).
+archive/
+data/
+*.csv
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
