@@ -9,12 +9,26 @@ Responsable: ALLAN.
 
 2. Capa Silver (Limpieza, Unión y Enriquecimiento)
 Propósito: Filtrar, limpiar y unir los datos para crear una vista consolidada y confiable del negocio.
-Procesos Clave:
-JOINs: Unión de tablas transaccionales (pedidos, items, pagos, reseñas) con tablas de entidades (productos, vendedores, clientes).
-Geolocalización: Cálculo de la distancia real en kilómetros entre el vendedor y el cliente usando la fórmula de Haversine.
-Variable Objetivo: Creación de la variable binaria is_late (1 si se retrasó, 0 si llegó a tiempo) y days_delay.
+Se divide en dos notebooks:
+
+2.1 Transformación y JOINs (silver_orders_joined)
+Agregación de las tablas transaccionales a grano de pedido antes de unirlas, para evitar el
+fan-out que produciría un JOIN directo entre tablas de granos distintos.
+Deduplicación de reseñas, resolución del vendedor y producto principal de cada pedido, y
+unión con las tablas de entidades (clientes, vendedores, productos).
+Salida: silver_orders_joined, 96.470 pedidos entregados, 1 fila = 1 pedido.
+
+2.2 Geolocalización y Variable Objetivo (silver_enriched)
+Limpieza de la tabla de geolocalización (filtro de bounding box de Brasil y agregación por
+mediana del prefijo postal), con fallback a centroide estatal para los prefijos sin cobertura.
+Cálculo de la distancia vendedor-cliente con la fórmula de Haversine en funciones nativas de Spark.
+Creación de is_late y days_delay comparando a nivel de fecha, no de timestamp.
+Auditoría de fuga de datos: contrato de features que se entrega a la capa Gold.
 Salida: Tabla unificada silver_enriched.
-Responsables: Persona B (Transformaciones) y ESTEBAN.
+
+Detalle de las decisiones de diseño: docs/silver_diseno.md
+Valores de referencia para validación: docs/valores_esperados.md
+Responsable: ESTEBAN.
 
 3. Capa Gold (Feature Engineering y ML)
 Propósito: Preparar el dataset final optimizado para el entrenamiento de modelos de Machine Learning.
