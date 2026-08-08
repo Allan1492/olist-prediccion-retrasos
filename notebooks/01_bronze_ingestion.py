@@ -1,5 +1,8 @@
 # Databricks notebook source
-# Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "5"
+# ///
 # MAGIC %md
 # MAGIC # CAPA BRONZE - INGESTA DE CSVs A TABLAS DELTA
 # MAGIC
