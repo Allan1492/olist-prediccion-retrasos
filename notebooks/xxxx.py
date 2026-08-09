@@ -5,15 +5,19 @@
 # MAGIC %md
 # MAGIC # 04 — Experimentos de modelado (sklearn + pandas, sin Spark ML)
 # MAGIC
-# MAGIC Entrada: `big_data_2026.olist.gold_ml_features`
-# MAGIC Salida: runs en MLflow + modelo campeón en Unity Catalog
+# MAGIC Entrada: `big_data_2026.olist.gold_ml_features` (proveniente de 03_2)
+# MAGIC Salida: runs en MLflow + modelo campeon registrado en Unity Catalog
 # MAGIC
-# MAGIC Por qué sklearn: el caché ML de Spark Connect (1 GB) se llena en este
-# MAGIC workspace; con 96k filas todo cabe en pandas y sklearn no usa ese caché.
+# MAGIC Por que sklearn: el cache ML de Spark Connect (1 GB) se llena en este
+# MAGIC workspace; con 96k filas todo cabe en pandas y sklearn no usa ese cache.
 
 # COMMAND ----------
 
-# 1. Config
+# MAGIC %md
+# MAGIC ## 1. Configuracion
+
+# COMMAND ----------
+
 import mlflow
 import mlflow.sklearn
 import pandas as pd
@@ -30,7 +34,11 @@ SEED = 42
 
 # COMMAND ----------
 
-# 2. Cargar Gold a pandas + contrato
+# MAGIC %md
+# MAGIC ## 2. Cargar Gold a pandas + contrato
+
+# COMMAND ----------
+
 pdf = spark.table(f"{CATALOG}.{SCHEMA}.gold_ml_features").toPandas()
 assert {"order_id", "is_late", "split_temporal"} <= set(pdf.columns)
 
@@ -51,7 +59,11 @@ print(f"Features: {len(num_cols)} num + {len(cat_cols)} cat | train={len(train):
 
 # COMMAND ----------
 
-# 3. Evaluación
+# MAGIC %md
+# MAGIC ## 3. Evaluacion
+
+# COMMAND ----------
+
 def evaluar(y_true, proba, thr):
     pred = (proba >= thr).astype(int)
     return {"pr_auc": average_precision_score(y_true, proba),
@@ -64,11 +76,15 @@ def mejor_threshold(y_true, proba):
 
 # COMMAND ----------
 
-# 4. Entrenar los 3 modelos (los 3 en la misma sesión, sin caché de Spark)
+# MAGIC %md
+# MAGIC ## 4. Entrenar los 3 modelos con MLflow
+
+# COMMAND ----------
+
 prepro = ColumnTransformer([
     ("num", "passthrough", num_cols),
     ("cat", OneHotEncoder(handle_unknown="ignore"), cat_cols),
-])
+], sparse_threshold=0)
 
 MODELOS = {
     "logistic_regression": LogisticRegression(max_iter=1000, random_state=SEED),
@@ -97,19 +113,4 @@ for nombre, est in MODELOS.items():
                                 rownames=["is_late"], colnames=["pred"]).reset_index()
         resultados.append({"nombre": nombre, "run_id": run.info.run_id,
                            "test": m_te, "thr": thr, "confusion": confusion})
-        print(f"{nombre} | test PR-AUC={m_te['pr_auc']:.4f} | F1={m_te['f1']:.4f}")
-
-# COMMAND ----------
-
-# 5. Campeón + registro en Unity Catalog
-campeon = max(resultados, key=lambda r: (r["test"]["pr_auc"], r["test"]["f1"]))
-print(f"CAMPEON: {campeon['nombre']} | PR-AUC={campeon['test']['pr_auc']:.4f} | threshold={campeon['thr']}")
-display(campeon["confusion"])
-
-try:
-    reg = mlflow.register_model(f"runs:/{campeon['run_id']}/model", NOMBRE_MODELO_UC)
-    print(f"Registrado en Unity Catalog: {NOMBRE_MODELO_UC} | version {reg.version}")
-    print("Asignale el alias 'champion' desde la pestana Models.")
-except Exception as e:
-    print("No se pudo registrar en Unity Catalog; el modelo queda como artefacto del run.")
-    print(f"Detalle: {e}")
+        print(f"{nombre} | test PR-AUC={m_te['pr_auc']:.4f} | F1={m_te['f
