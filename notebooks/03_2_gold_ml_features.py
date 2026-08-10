@@ -55,7 +55,7 @@ TABLA_SALIDA = "gold_ml_features"
 # en 02.2 sección 6. False = postura conservadora (checkout): la más segura por defecto.
 # Cambiar a True solo si el equipo decide explícitamente que el modelo se sirve después
 # de aprobado el pago.
-INCLUIR_COLUMNAS_CONDICIONALES = False
+INCLUIR_COLUMNAS_CONDICIONALES = True
 
 # Proporción de pedidos (ordenados por fecha) que va a train. El resto, a test.
 FRACCION_TRAIN = 0.8
@@ -328,6 +328,27 @@ df = (
         F.coalesce(F.col("tipo_pago_principal"), F.lit("desconocido")),
     )
 )
+
+# Imputación para columnas condicionales (si están habilitadas)
+if INCLUIR_COLUMNAS_CONDICIONALES:
+    df = df.withColumn(
+        "horas_hasta_aprobacion_imputado", F.col("horas_hasta_aprobacion").isNull().cast("int")
+    )
+    mediana_horas_aprobacion = df.select(
+        F.expr("percentile_approx(horas_hasta_aprobacion, 0.5)").alias("m")
+    ).collect()[0]["m"]
+    mediana_horas_aprobacion = mediana_horas_aprobacion if mediana_horas_aprobacion is not None else 0.0
+
+    df = df.withColumn(
+        "horas_hasta_aprobacion",
+        F.coalesce(F.col("horas_hasta_aprobacion"), F.lit(mediana_horas_aprobacion))
+    )
+    
+    # Para la fecha de aprobación, usar la fecha de compra como fallback seguro si es nula
+    df = df.withColumn(
+        "order_approved_at",
+        F.coalesce(F.col("order_approved_at"), F.col("order_purchase_timestamp"))
+    )
 
 print("Imputación aplicada.")
 print(f"  Mediana global distancia_km          : {mediana_distancia_global:.2f} km")
